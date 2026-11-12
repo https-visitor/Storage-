@@ -774,11 +774,13 @@
 
                             set(newRef, payload).then(() => {
                                 const shareLink = this.buildShareUrl(imgId);
-                                // Save to permanent Link History
+                                const directRawUrl = this.buildDirectRawUrl(imgId);
+
                                 this.linkHistory.unshift({
                                     id: imgId,
                                     title: finalTitle,
                                     shareLink: shareLink,
+                                    directRawUrl: directRawUrl,
                                     projectId: this.currentConfig.projectId || 'Firebase',
                                     apiKey: this.currentConfig.apiKey || '',
                                     sizeBytes: payload.sizeBytes,
@@ -787,7 +789,7 @@
                                 this.persistHistory();
                                 this.renderLinkHistory();
 
-                                resolve({ ...payload, shareLink });
+                                resolve({ ...payload, shareLink, directRawUrl });
                             }).catch(reject);
                         };
                         img.src = e.target.result;
@@ -801,18 +803,28 @@
                 const listEl = document.getElementById('batchLinksList');
                 const titleEl = document.getElementById('batchSuccessTitle');
 
-                titleEl.innerHTML = `<i class="fa-solid fa-circle-check"></i> ${items.length} Image Link(s) Ready:`;
+                titleEl.innerHTML = `<i class="fa-solid fa-circle-check"></i> ${items.length} Direct Image Link(s) Ready:`;
                 listEl.innerHTML = items.map(item => `
                     <div style="background: rgba(0,0,0,0.35); border: 1px solid var(--border-glass); border-radius: 10px; padding: 8px;">
-                        <div style="font-size: 0.74rem; font-weight: 700; margin-bottom: 4px; color: #fff;">
+                        <div style="font-size: 0.74rem; font-weight: 700; margin-bottom: 6px; color: #fff;">
                             ${this.escapeHtml(item.title)} <span style="color: var(--accent-gold);">(${this.formatBytes(item.sizeBytes)})</span>
                         </div>
-                        <div style="display: flex; gap: 6px;">
-                            <input type="text" class="text-input" style="font-size: 0.72rem; padding: 6px 8px;" value="${item.shareLink}" readonly>
-                            <button class="btn btn-grad" style="padding: 6px 10px; font-size: 0.72rem; white-space: nowrap;" onclick="navigator.clipboard.writeText('${item.shareLink}'); app.toast('📋 Link copied!');">
-                                Copy
+
+                        <div style="font-size: 0.68rem; color: var(--accent-green); font-weight: 700; margin-bottom: 3px;">
+                            Direct Image Link (Paste anywhere in Admin / Website / &lt;img&gt;):
+                        </div>
+                        <div style="display: flex; gap: 6px; margin-bottom: 6px;">
+                            <input type="text" class="text-input" style="font-size: 0.7rem; padding: 5px 8px;" value="${item.directRawUrl}" readonly>
+                            <button class="btn btn-grad" style="padding: 5px 10px; font-size: 0.7rem; white-space: nowrap;" onclick="navigator.clipboard.writeText('${item.directRawUrl}'); app.toast('📋 Direct Image Link copied!');">
+                                Copy Direct
                             </button>
-                            <button class="btn btn-green" style="padding: 6px 9px; font-size: 0.72rem;" title="View" onclick="app.enterViewerMode('${item.id}')">
+                        </div>
+
+                        <div style="display: flex; gap: 6px;">
+                            <button class="btn" style="flex: 1; padding: 5px 8px; font-size: 0.7rem;" onclick="navigator.clipboard.writeText('${item.shareLink}'); app.toast('📋 Share Page Link copied!');">
+                                <i class="fa-solid fa-share-nodes"></i> Copy View Page Link
+                            </button>
+                            <button class="btn btn-green" style="padding: 5px 10px; font-size: 0.7rem;" title="Preview" onclick="app.enterViewerMode('${item.id}')">
                                 <i class="fa-solid fa-eye"></i>
                             </button>
                         </div>
@@ -857,8 +869,8 @@
                             </div>
                         </div>
                         <div style="display: flex; gap: 6px; flex-shrink: 0;">
-                            <button class="btn btn-grad" style="padding: 5px 10px; font-size: 0.72rem;" onclick="navigator.clipboard.writeText('${h.shareLink}'); app.toast('📋 History link copied!');">
-                                <i class="fa-regular fa-copy"></i> Copy Link
+                            <button class="btn btn-grad" style="padding: 5px 10px; font-size: 0.72rem;" onclick="navigator.clipboard.writeText('${h.directRawUrl || h.shareLink}'); app.toast('📋 Direct Image Link copied!');">
+                                <i class="fa-regular fa-copy"></i> Copy Direct
                             </button>
                             <a href="${h.shareLink}" target="_blank" class="btn btn-green" style="padding: 5px 9px; font-size: 0.72rem;" title="Open Link">
                                 <i class="fa-solid fa-arrow-up-right-from-square"></i>
@@ -901,6 +913,11 @@
                 const baseUrl = window.location.href.split('?')[0];
                 const encodedCfg = btoa(JSON.stringify(this.currentConfig));
                 return `${baseUrl}?img=${encodeURIComponent(imgId)}&cfg=${encodeURIComponent(encodedCfg)}`;
+            },
+
+            buildDirectRawUrl(imgId) {
+                const dbUrl = (this.currentConfig.databaseURL || '').replace(/\/$/, '');
+                return `${dbUrl}/hostedImages/${imgId}/dataUrl.json`;
             },
 
 
@@ -985,7 +1002,7 @@
                 }
 
                 grid.innerHTML = list.map(item => {
-                    const link = this.buildShareUrl(item.id);
+                    const directUrl = this.buildDirectRawUrl(item.id);
                     const kb = ((item.sizeBytes || 0) / 1024).toFixed(1);
                     return `
                         <div class="img-item">
@@ -1003,8 +1020,8 @@
                                     ${item.width}×${item.height} px • ${new Date(item.uploadedAt).toLocaleDateString()}
                                 </div>
                                 <div style="display: flex; gap: 6px; margin-top: auto;">
-                                    <button class="btn btn-grad" style="flex: 1; padding: 7px; font-size: 0.75rem;" onclick="navigator.clipboard.writeText('${link}'); app.toast('📋 Share link copied!');">
-                                        <i class="fa-regular fa-copy"></i> Copy Link
+                                    <button class="btn btn-grad" style="flex: 1; padding: 7px; font-size: 0.75rem;" onclick="navigator.clipboard.writeText('${directUrl}'); app.toast('📋 Direct Image Link copied!');">
+                                        <i class="fa-regular fa-copy"></i> Copy Direct
                                     </button>
                                     <button class="btn" style="padding: 7px 10px; font-size: 0.75rem;" title="View" onclick="app.enterViewerMode('${item.id}')">
                                         <i class="fa-solid fa-eye"></i>
@@ -1047,4 +1064,4 @@
         window.addEventListener('DOMContentLoaded', () => app.init());
     </script>
 </body>
-  </html>
+</html>
